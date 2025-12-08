@@ -4,20 +4,28 @@ const stripe = require('stripe')('sk_test_51ScASNK7DEVkPpUa6yyNhtIXZx20qUQYu12kw
 
 const app = express();
 
-// Middleware
-app.use(cors()); // Allow requests from any origin
+// Middleware - CORS configured for British payments
+app.use(cors({
+  origin: '*', // Allows all origins - restrict this in production
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({ 
     status: 'Server is running',
-    message: 'Trader Brothers Payment Backend',
+    message: 'Trader Brothers Payment Backend - UK Payments',
+    currency: 'GBP',
+    region: 'United Kingdom',
     timestamp: new Date().toISOString()
   });
 });
 
-// Create payment intent endpoint
+// Create payment intent endpoint - Configured for British payments
 app.post('/create-payment-intent', async (req, res) => {
   try {
     const { amount, currency, invoiceNumber, customerEmail, customerName } = req.body;
@@ -27,22 +35,35 @@ app.post('/create-payment-intent', async (req, res) => {
       return res.status(400).json({ error: 'Amount and currency are required' });
     }
 
-    // Create a PaymentIntent with the order amount and currency
+    // Ensure currency is GBP for British payments
+    if (currency.toLowerCase() !== 'gbp') {
+      return res.status(400).json({ error: 'Only GBP (British Pound) payments are accepted' });
+    }
+
+    // Create a PaymentIntent with British configuration
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount, // Amount in smallest currency unit (pence for GBP)
-      currency: currency,
+      amount: amount, // Amount in pence (smallest currency unit for GBP)
+      currency: 'gbp', // British Pounds
       metadata: {
         invoiceNumber: invoiceNumber || 'N/A',
         customerName: customerName || 'N/A',
+        region: 'UK',
+        company: 'Trader Brothers Ltd'
       },
       receipt_email: customerEmail || undefined,
+      description: `Invoice ${invoiceNumber} - ${customerName}`,
+      statement_descriptor: 'TRADER BROTHERS', // Appears on customer's bank statement
       automatic_payment_methods: {
         enabled: true,
+        allow_redirects: 'never' // Prevents redirect-based payment methods for smoother UX
       },
     });
 
     // Log successful creation
-    console.log(`✅ Payment Intent created: ${paymentIntent.id} for ${customerName} - ${invoiceNumber}`);
+    console.log(`✅ UK Payment Intent created: ${paymentIntent.id}`);
+    console.log(`   Customer: ${customerName}`);
+    console.log(`   Invoice: ${invoiceNumber}`);
+    console.log(`   Amount: £${(amount / 100).toFixed(2)}`);
 
     // Send back the client secret
     res.json({
@@ -82,7 +103,8 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   switch (event.type) {
     case 'payment_intent.succeeded':
       const paymentIntent = event.data.object;
-      console.log(`✅ Payment succeeded: ${paymentIntent.id}`);
+      console.log(`✅ UK Payment succeeded: ${paymentIntent.id}`);
+      console.log(`   Amount: £${(paymentIntent.amount / 100).toFixed(2)}`);
       // Here you could update your database, send confirmation emails, etc.
       break;
     case 'payment_intent.payment_failed':
@@ -101,10 +123,12 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`
 ========================================
-🚀 Trader Brothers Payment Server
+🇬🇧 Trader Brothers Payment Server (UK)
 ========================================
 Server running on port ${PORT}
 Environment: ${process.env.NODE_ENV || 'development'}
+Currency: GBP (British Pounds)
+Region: United Kingdom
 Stripe: Configured ✓
 CORS: Enabled ✓
 ========================================
