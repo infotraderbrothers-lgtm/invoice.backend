@@ -14,6 +14,15 @@ app.use(cors({
 
 app.use(express.json());
 
+// Warmup endpoint - keeps server awake
+app.get('/warmup', (req, res) => {
+  res.json({ 
+    status: 'warm',
+    message: 'Server is ready',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({ 
@@ -53,10 +62,8 @@ app.post('/create-payment-intent', async (req, res) => {
       receipt_email: customerEmail || undefined,
       description: `Invoice ${invoiceNumber} - ${customerName}`,
       statement_descriptor_suffix: 'TRADER BROTHERS', // Appears on customer's bank statement (max 22 chars)
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never' // Prevents redirect-based payment methods for smoother UX
-      },
+      payment_method_types: ['card'], // Only cards for faster processing
+      confirmation_method: 'automatic', // Automatic confirmation for speed
     });
 
     // Log successful creation
@@ -131,6 +138,7 @@ Currency: GBP (British Pounds)
 Region: United Kingdom
 Stripe: Configured ✓
 CORS: Enabled ✓
+Warmup Endpoint: /warmup ✓
 ========================================
   `);
 });
