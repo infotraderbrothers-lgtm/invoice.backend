@@ -52,7 +52,7 @@ app.post('/create-payment-intent', async (req, res) => {
       },
       receipt_email: customerEmail || undefined,
       description: `Invoice ${invoiceNumber} - ${customerName}`,
-      statement_descriptor: 'TRADER BROTHERS', // Appears on customer's bank statement
+      statement_descriptor_suffix: 'TRADER BROS', // Appears on customer's bank statement (max 22 chars)
       automatic_payment_methods: {
         enabled: true,
         allow_redirects: 'never' // Prevents redirect-based payment methods for smoother UX
